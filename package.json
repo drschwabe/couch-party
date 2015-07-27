@@ -1,0 +1,10 @@
+{
+  "name": "couch-party",
+  "version": "1.0.0",
+  "main": "couch-party.js",
+  "dependencies": {
+    "http-pouchdb": "^1.1.1",
+    "pouchdb": "^3.6.0",
+    "underscore": "^1.8.3"
+  }
+}
