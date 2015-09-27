@@ -1,15 +1,16 @@
 var PouchDB = require('pouchdb'),
-    HTTPPouchDB = require('http-pouchdb')(PouchDB, 'http://admin:admin@localhost:5984'),
     _pouch = require('../under-pouch'),
     _ = require('underscore')
 
 var couchParty = {}
 
-couchParty.login = function(baseName, login, callback) {
+couchParty.login = function(baseURL, login, callback) {
+  //^ string, object, function
+  //baseURL parameter should have format like: "http://admin:admin@localhost:5984/myproject" 
   //Find the id which corresponds to the nickname...
-  var dbUsers = new HTTPPouchDB(baseName + '_users')
-  //^ "_users" part appended automatically,
-  //so module user need only specify a base name; ie- a project name.
+  var dbUsers = new PouchDB(baseURL + '_users')
+  //^ "_users" part appended automatically, 
+  //which results in a db name of ie: "myproject_users"
   _pouch.find(dbUsers, function(doc) { return doc.nickname == login.nickOrEmail || doc.email == login.nickOrEmail }, function(doc) {
 
     //If user does not exist:
@@ -20,9 +21,9 @@ couchParty.login = function(baseName, login, callback) {
 
     //Now connect to the corresponding (existing) database
     //which is based on the user's couch generated hash (but in lower case)
-    dbUser = new HTTPPouchDB(baseName + '_user_' + doc._id.toLowerCase() )
-    dbUser.get('user', function(err, userDoc) {
-      if(err) return console.log(err)
+    var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())    
+    userDb.get('user', function(err, userDoc) {
+      if(err) return callback(err)
       //Merge in the email and nickname from the previous doc:
       userDoc = _.extend(doc, userDoc)
       callback(null, userDoc)
@@ -30,15 +31,13 @@ couchParty.login = function(baseName, login, callback) {
   })
 }
 
-couchParty.register = function(baseName, login, callback) {
-  var dbUsers = new HTTPPouchDB(baseName + '_users')
+couchParty.register = function(baseURL, login, callback) {
+  var dbUsers = new PouchDB(baseURL + '_users')
 
   //Check for existing user based on email address: 
   _pouch.find(dbUsers, function(doc) { return doc.email == login.email }, function(doc) {
     //If user exists:
     if(doc) {
-      // console.log('A user with that nickname or email already exits.')
-      // console.log(doc)
       return callback('A user with that email already exists.')
     } else {
       //Creates a doc in the "baseName_users" database:
@@ -48,9 +47,10 @@ couchParty.register = function(baseName, login, callback) {
         if(err) return console.log(err)
         console.log(res)
         //Now create a unique database for the user:
-        var userDbName = baseName + '_user_' +  doc._id.toLowerCase()
-        dbUser = new HTTPPouchDB(userDbName)
-        dbUser.post({ _id: 'user', db_name: userDbName }, function(err, res) {
+        var userDbName = baseURL + '_user_' + doc._id.toLowerCase()
+        var baseName = userDbName.split("/").pop() //< Strip out the address. 
+        var userDb = new PouchDB(userDbName)
+        userDb.post({ _id: 'user', db_name: baseName }, function(err, res) {
           if(err) return console.log(err)
           console.log(res)
           callback()
@@ -60,18 +60,17 @@ couchParty.register = function(baseName, login, callback) {
   })
 }
 
-couchParty.syncEverybody = function(baseName) {
+couchParty.syncEverybody = function(baseURL) {
   //### User database changes ###
   //Listen for changes to the user's databases.
   //(if password or email change happened in user's database,
   //this needs to be applied to master users db (baseName_users))
-  var dbUsers = new HTTPPouchDB(baseName + '_users')
+  var dbUsers = new PouchDB(baseURL + '_users')
   _pouch.pluck(dbUsers, function(userDocs) {
     if(!_.isArray(userDocs)) userDocs = [userDocs]
     userDocs.forEach(function(userDoc) {
-      //Create a new changes feed:
-      var userDbName = baseName + '_user_' + userDoc._id.toLowerCase()
-      var userDb = new HTTPPouchDB(userDbName)
+      //Create a new changes feed...
+      var userDb = new PouchDB(baseURL + '_user_' + userDoc._id.toLowerCase())
       userDb.changes({live:true, include_docs: true, doc_ids: ['user']})
             .on('change', function(change) {
              console.log('Change to be applied for ' + userDoc.email)
