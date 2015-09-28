@@ -1,10 +1,33 @@
 {
   "name": "couch-party",
-  "version": "1.0.0",
+  "version": "0.0.1",
+  "description": "A set of functions for making a Couch/PouchDB driven multi-user web app.",  
   "main": "couch-party.js",
+  "license": "MIT",  
+  "author": {
+    "name": "Derrick Schwabe",
+    "email": "admin@nerdbusiness.com"
+  },
+  "homepage": "https://github.com/drschwabe/couch-party",    
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/drschwabe/couch-party"
+  },
+  "keywords": [
+    "couch", 
+    "couchdb",
+    "pouch",
+    "pouchdb", 
+    "community", 
+    "multi user", 
+    "login", 
+    "registration", 
+    "user profile", 
+    "sync"
+  ],      
   "dependencies": {
-    "http-pouchdb": "^1.1.1",
     "pouchdb": "^3.6.0",
+    "underpouch": "0.0.1",
     "underscore": "^1.8.3"
   }
 }

@@ -1,5 +1,5 @@
 var PouchDB = require('pouchdb'),
-    _pouch = require('../under-pouch'),
+    _pouch = require('underpouch'),
     _ = require('underscore')
 
 var couchParty = {}
@@ -53,7 +53,7 @@ couchParty.register = function(baseURL, login, callback) {
         userDb.post({ _id: 'user', db_name: baseName }, function(err, res) {
           if(err) return console.log(err)
           console.log(res)
-          callback()
+          callback(null, res)
         })
       })
     }
