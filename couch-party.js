@@ -46,6 +46,7 @@ couchParty.register = function(baseURL, login, callback) {
       dbUsers.post(doc, function(err, res) {
         if(err) return console.log(err)
         console.log(res)
+        doc._id = res.id
         //Now create a unique database for the user:
         var userDbName = baseURL + '_user_' + doc._id.toLowerCase()
         var baseName = userDbName.split("/").pop() //< Strip out the address. 
