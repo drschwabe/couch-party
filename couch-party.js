@@ -100,5 +100,39 @@ couchParty.syncEverybody = function(baseURL) {
     })
   })
 }
+//TODO: make an alias for "resetLink"
+couchParty.resetToken = function(baseURL, email, callback) {
+  var dbUsers = new PouchDB(baseURL + '_users')    
+  var secretToken = require('crypto').randomBytes(64).toString('hex')
+  var dbUsers = new PouchDB(baseURL + '_users')
+  _pouch.find(dbUsers, function(doc) { return doc.email == email }, function(doc) {
+    if(_.isUndefined(doc)) return callback('No user with that email exists.')
+    //Apply the token to the user's db...
+    doc.secret_token = secretToken
+    dbUsers.put(doc, function(err, res) {
+      if(err) {
+        console.log(err) 
+        return callback(err)
+      }
+      //and now send the token back: 
+      callback(null, secretToken)      
+    })
+  })
+}
+
+couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {
+  var dbUsers = new PouchDB(baseURL + '_users')  
+  _pouch.find(dbUsers, function(doc) { return doc.secret_token == secretToken }, function(doc) {
+    doc.password = newPass
+    delete doc.secret_token
+    dbUsers.put(doc, function(err, res) {
+      if(err) {
+        console.log(err)
+        return callback(err)
+      }
+      callback(null)
+    })
+  })
+}
 
 module.exports = couchParty
