@@ -74,3 +74,56 @@ function initPouch(userDoc) {
 }
 ```
 
+
+### Lost keys
+
+To reset a password, first call couchParty.resetToken to generate and 'seed' the appropriate user with a secret token (then an implied step where you email the user said token) and then call couchParty.resetPass with the token and new password. 
+
+There is no built-in email mecahnism, you can send the email however you like. For example with nodemailer as in the example below.
+
+```
+//Post route from a page that collects an email address for the purpose of password reset...
+//(app is an express app)
+app.post('/api/reset', function(req, res) {
+  console.log('A visitor has requested to reset password for: ' + req.body.email)
+  //Lookup the username based on the email provided...
+  couchParty.resetToken(baseCouchURL, req.body.email, function(err, token) {
+    if(err) return res.send({ok:false, msg: err})  
+    //the link contains a secret token
+    //the secret token is applied to the userDoc in the user database
+    //Now you can send the email however you like:
+    var email = {
+      to: req.body.email, 
+      subject:`Password Reset`, 
+      from : 'support@worlddomination.com', 
+      html: `<p>Hello there,</p>
+      <p>There has been a request to reset your password.  If you wish to proceed, click the link below: </p>
+      <p><a href="http://worlddomination.com/reset-confirm/${token}">www.worlddomination.com/reset-confirm/token</a></p>
+      If for any reason you did not request a password reset please reply back to inform support@worlddomination.com</p>
+      `
+    }
+    //Send the mail: 
+    //(nodemailer object initialized already)
+    nodemailer.sendMail(email, function(err, nodemailerRes){
+      if(err) return console.log(err.message)
+      var resultMsg = 'An email with further instruction has been sent to : ' + req.body.email
+      res.send({ok:true, msg: resultMsg })
+    })
+  })
+})
+
+//Post route that contains the token; this is hit after the user lands on the URL
+//provided in the reset email.
+app.post('/api/reset/:secretToken', function(req, res) {
+  couchParty.resetPass(baseCouchURL, req.params.secretToken, req.body.new_password, function(err) {
+    if(err) return res.send({ok:false, msg: err })
+    //If there was no error, the password was reset successfully: 
+    res.send({ok:true, msg: 'Password was reset successfully.'})
+  })
+})
+```
+
+
+
+
+

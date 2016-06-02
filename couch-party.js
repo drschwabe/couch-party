@@ -123,6 +123,7 @@ couchParty.resetToken = function(baseURL, email, callback) {
 couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')  
   _pouch.find(dbUsers, function(doc) { return doc.secret_token == secretToken }, function(doc) {
+    if(!doc) return callback('The token is invalid or expired.')
     doc.password = newPass
     delete doc.secret_token
     dbUsers.put(doc, function(err, res) {
