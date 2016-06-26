@@ -2,7 +2,7 @@
 
 ALPHA / WIP
 
-A set of functions for building Couch/PouchDB driven multi-user apps.   Currently does basic login, registration, and user profile syncing. 
+A set of functions for building Couch/PouchDB driven multi-user apps.   Currently does basic login, registration, password reset and user profile syncing. 
 
 ```
 npm install couch-party
