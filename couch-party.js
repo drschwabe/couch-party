@@ -1,6 +1,7 @@
 var PouchDB = require('pouchdb'),
     _pouch = require('underpouch'),
-    _ = require('underscore')
+    _ = require('underscore'), 
+    bcrypt = require('bcrypt')
 
 var couchParty = {}
 
@@ -17,16 +18,21 @@ couchParty.login = function(baseURL, login, callback) {
     if(_.isUndefined(doc)) return callback('No user with that nickname or email.')
 
     //Password check:
-    if(login.password != doc.password) return callback('Incorrect password.')
+    bcrypt.compare(login.password, doc.password, function(err, res) {
+      if(err) return console.log(err)
+      if(!res) return callback('Incorrect password.')
 
-    //Now connect to the corresponding (existing) database
-    //which is based on the user's couch generated hash (but in lower case)
-    var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())    
-    userDb.get('user', function(err, userDoc) {
-      if(err) return callback(err)
-      //Merge in the email and nickname from the previous doc:
-      userDoc = _.extend(doc, userDoc)
-      callback(null, userDoc)
+
+      //Now connect to the corresponding (existing) database
+      //which is based on the user's couch generated hash (but in lower case)
+      var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
+      userDb.get('user', function(err, userDoc) {
+        if(err) return callback(err)
+        //Merge in the email and nickname from the previous doc:
+        userDoc = _.extend(doc, userDoc)
+        callback(null, userDoc)
+      })
+
     })
   })
 }
@@ -48,19 +54,24 @@ couchParty.register = function(baseURL, login, callback) {
       //Apply a secret token: 
       doc.signup_token = require('crypto').randomBytes(64).toString('hex')
 
-      dbUsers.post(doc, function(err, res) {
+      //Encrypt the password: 
+      bcrypt.hash(doc.password, 10, function(err, hash) {
         if(err) return console.log(err)
-        console.log(res)
-        doc._id = res.id
-        //Now create a unique database for the user:
-        var userDbName = baseURL + '_user_' + doc._id.toLowerCase()
-        var baseName = userDbName.split("/").pop() //< Strip out the address. 
-        var userDb = new PouchDB(userDbName)
-        userDb.post({ _id: 'user', db_name: baseName }, function(err, res) {
+        doc.password = hash
+        dbUsers.post(doc, function(err, res) {
           if(err) return console.log(err)
           console.log(res)
-          callback(null, doc.signup_token)
-        })
+          doc._id = res.id
+          //Now create a unique database for the user:
+          var userDbName = baseURL + '_user_' + doc._id.toLowerCase()
+          var baseName = userDbName.split("/").pop() //< Strip out the address. 
+          var userDb = new PouchDB(userDbName)
+          userDb.post({ _id: 'user', db_name: baseName }, function(err, res) {
+            if(err) return console.log(err)
+            console.log(res)
+            callback(null, doc.signup_token)
+          })
+        })      
       })
     }
   })
@@ -92,7 +103,7 @@ couchParty.verify = function(baseURL, signupToken, callback) {
         console.log('userDb put success')
         console.log(res)
         doc._rev = res.rev
-        callback(null, doc)
+        if(callback) return callback(null, doc)
         //TODO: remove the unneeded doc.signup_token from the public users db
         //(syncEverybody extends, does not replace the original publicUsersDb doc)
       })        
@@ -106,7 +117,7 @@ couchParty.syncEverybody = function(baseURL) {
   //(if password or email change happened in user's database,
   //this needs to be applied to master users db (baseName_users))
   var dbUsers = new PouchDB(baseURL + '_users')
-  _pouch.pluck(dbUsers, function(userDocs) {
+  _pouch.all(dbUsers, function(userDocs) {
     if(!_.isArray(userDocs)) userDocs = [userDocs]
     userDocs.forEach(function(userDoc) {
       //Create a new changes feed...
@@ -114,6 +125,8 @@ couchParty.syncEverybody = function(baseURL) {
       userDb.changes({live:true, include_docs: true, doc_ids: ['user']})
         .on('change', function(change) {
           console.log('Change to be applied for ' + userDoc.email)
+          console.log(change.doc)
+          console.log('-------------------')
           //Throw away the id and rev:
           delete change.doc._id
           delete change.doc._rev
@@ -143,14 +156,14 @@ couchParty.resetToken = function(baseURL, email, callback) {
     if(_.isUndefined(doc)) return callback('No user with that email exists.')
     //Apply the token to the user's db...
     doc.secret_token = secretToken
-    var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())    
-    userDb.put(doc, function(err, res) {
-      if(err) {
-        console.log(err) 
-        return callback(err)
-      }
+    //Get the userDb: 
+    var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
+    //Remove the doc id so _pouch.extend works: 
+    delete doc._id
+    //Extend the userDb's "user" doc with the new token:  
+    _pouch.extend(userDb, 'user', doc, function(doc) {
       //and now send the token back: 
-      callback(null, secretToken)      
+      callback(null, secretToken)       
     })
   })
 }
@@ -172,20 +185,31 @@ couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {
   })
 }
 
-// couchParty.viewUser = function(baseURL, nickname, callback) {
-//   _pouch.find(dbUsers, function(doc) { return doc.nickname == login.nickOrEmail }, function(doc) {
-//     //If user does not exist:
-//     if(_.isUndefined(doc)) return callback('No user with that nickname or email.')
-//     var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())    
-//     userDb.get('user', function(err, userDoc) {
-//       if(err) return callback(err)
-//       //Pick out only the publically viewable fields we want: 
-//       publicUserDoc = _.pick(userDoc, '')
-//       callback(null, userDoc)
-//     })
-//   })
-// }
+couchParty.updatePass = function(baseURL, email, newPass, callback) {
+  var dbUsers = new PouchDB(baseURL + '_users') 
+  _pouch.findWhere(dbUsers, { email : email }, function(userDoc) {
+    //Encrypt the newpass: 
+    bcrypt.hash(newPass, 10, function(err, hash) {
+      if(err) return console.log(err)
+      userDoc.password = hash
+
+      var userDb = new PouchDB(baseURL + '_user_' + userDoc._id.toLowerCase())
+
+      delete userDoc._id //< Delete this so we can do _pouch.extend
 
 
+      //We apply the change to the userDb which will
+      //replicate back to dbUsers via couchParty.syncEverybody.
+      _pouch.extend(userDb, 'user', userDoc, function(err, updatedUserDoc) {
+        if(err) {
+          console.log('error with _pouch.extend / couchParty.updatePass:')
+          console.log(err)
+          return
+        }
+        callback(null)
+      })    
+    })    
+  })
+}
 
 module.exports = couchParty
