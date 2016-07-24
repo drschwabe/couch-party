@@ -1,7 +1,8 @@
 var PouchDB = require('pouchdb'),
     _pouch = require('underpouch'),
     _ = require('underscore'), 
-    bcrypt = require('bcrypt')
+    bcrypt = require('bcrypt'),
+    _s = require('underscore.string')
 
 var couchParty = {}
 
@@ -21,7 +22,6 @@ couchParty.login = function(baseURL, login, callback) {
     bcrypt.compare(login.password, doc.password, function(err, res) {
       if(err) return console.log(err)
       if(!res) return callback('Incorrect password.')
-
 
       //Now connect to the corresponding (existing) database
       //which is based on the user's couch generated hash (but in lower case)
@@ -61,12 +61,24 @@ couchParty.register = function(baseURL, login, callback) {
         dbUsers.post(doc, function(err, res) {
           if(err) return console.log(err)
           console.log(res)
-          doc._id = res.id
           //Now create a unique database for the user:
-          var userDbName = baseURL + '_user_' + doc._id.toLowerCase()
-          var baseName = userDbName.split("/").pop() //< Strip out the address. 
-          var userDb = new PouchDB(userDbName)
-          userDb.post({ _id: 'user', db_name: baseName }, function(err, res) {
+          var userDbName = baseURL.split("/").pop() + '_user_' + res.id
+
+          console.log('### userDbName ###')
+          console.log(userDbName)
+
+          console.log('### userDb address ###')
+          console.log(_s.strLeftBack(baseURL, '/') + '/' + userDbName)          
+
+          //^^ strip out the address. 
+          var userDb = new PouchDB(_s.strLeftBack(baseURL, '/') + '/' + userDbName)
+          //Make a single 'user' doc with reference to id and new database:
+          userDoc = {
+            _id : 'user', 
+            db_id : res.id, 
+            db_name : userDbName
+          }
+          userDb.put(userDoc, function(err, res) {
             if(err) return console.log(err)
             console.log(res)
             callback(null, doc.signup_token)
@@ -93,8 +105,8 @@ couchParty.verify = function(baseURL, signupToken, callback) {
       console.log('here is the originalDoc from userDb: ')
       console.log(originalDoc)
       //Update the rev so we can modfiy this doc: 
-      doc._rev = originalDoc._rev
-      doc.db_name = originalDoc.db_name
+      //doc._rev = originalDoc._rev
+      doc = _.extend(doc, originalDoc)
       userDb.put(doc, function(err, res) {
         if(err) {
           console.log(err)
@@ -106,6 +118,8 @@ couchParty.verify = function(baseURL, signupToken, callback) {
         if(callback) return callback(null, doc)
         //TODO: remove the unneeded doc.signup_token from the public users db
         //(syncEverybody extends, does not replace the original publicUsersDb doc)
+        //Do a one time sync: 
+        couchParty.syncSomeone(baseURL, doc.db_id)        
       })        
     })
   })  
@@ -145,6 +159,33 @@ couchParty.syncEverybody = function(baseURL) {
         })
     })
   })
+}
+
+//Just sync this one person
+//TODO: Stop syncing after 90 minutes or specified duration.
+couchParty.syncSomeone = function(baseURL, userId, live) {
+  if(_.isNull(live)) live = false
+  console.log('Sync user: ' + userId)
+  if(!live) console.log('(one shot sync)')
+  else console.log('(live; persistent sync)')
+  var dbUsers = new PouchDB(baseURL + '_users')  
+  var userDb = new PouchDB(baseURL + '_user_' + userId)
+  userDb.changes({live: live, include_docs: true, doc_ids: ['user']})
+    .on('change', function(change) {
+      console.log('Change to be applied for ' + userId)
+      console.log(change.doc)
+      console.log('-------------------')
+
+      //Throw away the id and rev...
+      delete change.doc._id
+      //Put in the master users db:
+      _pouch.extend(dbUsers, userId, change.doc, function(updatedDoc) {
+        console.log('Change applied successfully.')
+      })
+    })
+    .on('error', function (err) {
+      console.log(err)
+    })  
 }
 
 //TODO: make an alias for "resetLink"

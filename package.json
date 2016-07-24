@@ -28,7 +28,8 @@
   "dependencies": {
     "bcrypt": "^0.8.7",
     "pouchdb": "^5.3.0",
-    "underpouch": "^0.3.0",
-    "underscore": "^1.8.3"
+    "underpouch": "^0.3.1",
+    "underscore": "^1.8.3",
+    "underscore.string": "^3.3.4"
   }
 }
