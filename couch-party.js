@@ -238,15 +238,9 @@ couchParty.updatePass = function(baseURL, email, newPass, callback) {
 
       delete userDoc._id //< Delete this so we can do _pouch.extend
 
-
       //We apply the change to the userDb which will
-      //replicate back to dbUsers via couchParty.syncEverybody.
-      _pouch.extend(userDb, 'user', userDoc, function(err, updatedUserDoc) {
-        if(err) {
-          console.log('error with _pouch.extend / couchParty.updatePass:')
-          console.log(err)
-          return
-        }
+      //replicate back to dbUsers via couchParty.syncSomone or couchParty.SyncEverybody
+      _pouch.extend(userDb, 'user', userDoc, function(updatedUserDoc) {
         callback(null)
       })    
     })    

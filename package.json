@@ -1,7 +1,7 @@
 {
   "name": "couch-party",
-  "version": "0.0.4",
-  "description": "A set of functions for building Couch/PouchDB driven user authentication and profiles.",
+  "version": "0.0.5",
+  "description": "A set of functions for building Couch/PouchDB driven community apps.",
   "main": "couch-party.js",
   "license": "MIT",
   "author": {
