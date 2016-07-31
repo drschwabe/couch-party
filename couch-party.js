@@ -161,16 +161,24 @@ couchParty.syncEverybody = function(baseURL) {
   })
 }
 
+var partiers = []
+
 //Just sync this one person
 //TODO: Stop syncing after 90 minutes or specified duration.
 couchParty.syncSomeone = function(baseURL, userId, live) {
   if(_.isNull(live)) live = false
+  if( _.contains(partiers, userId)) {
+    console.log('Already syncing ' + userId)
+    return
+  }
   console.log('Sync user: ' + userId)
   if(!live) console.log('(one shot sync)')
   else console.log('(live; persistent sync)')
+
+  partiers.push(userId)
   var dbUsers = new PouchDB(baseURL + '_users')  
   var userDb = new PouchDB(baseURL + '_user_' + userId)
-  userDb.changes({live: live, include_docs: true, doc_ids: ['user']})
+  var changes = userDb.changes({live: live, include_docs: true, doc_ids: ['user']})
     .on('change', function(change) {
       console.log('Change to be applied for ' + userId)
       console.log(change.doc)
@@ -185,7 +193,17 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
     })
     .on('error', function (err) {
       console.log(err)
-    })  
+    })
+    .on('complete', function(info) {
+      console.log(userId + ' has left the party (no longer syncing).')
+      console.log(info)
+    })
+
+  //Cancel the changes listening / assume user has left the party after x minutes.
+  setTimeout(function() {
+    changes.cancel()
+    partiers = _.without(partiers, userId)
+  }, 1800000) //< 30 minutes. 
 }
 
 //TODO: make an alias for "resetLink"
