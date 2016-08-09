@@ -26,6 +26,7 @@ couchParty.login = function(baseURL, login, callback) {
       //Now connect to the corresponding (existing) database
       //which is based on the user's couch generated hash (but in lower case)
       var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
+
       userDb.get('user', function(err, userDoc) {
         if(err) return callback(err)
         //Merge in the email and nickname from the previous doc:
@@ -174,8 +175,9 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
   console.log('Sync user: ' + userId)
   if(!live) console.log('(one shot sync)')
   else console.log('(live; persistent sync)')
+  
+  if(live) partiers.push(userId)
 
-  partiers.push(userId)
   var dbUsers = new PouchDB(baseURL + '_users')  
   var userDb = new PouchDB(baseURL + '_user_' + userId)
   var changes = userDb.changes({live: live, include_docs: true, doc_ids: ['user']})
@@ -208,7 +210,6 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
 
 //TODO: make an alias for "resetLink"
 couchParty.resetToken = function(baseURL, email, callback) {
-  var dbUsers = new PouchDB(baseURL + '_users')    
   var secretToken = require('crypto').randomBytes(64).toString('hex')
   var dbUsers = new PouchDB(baseURL + '_users')
   _pouch.find(dbUsers, function(doc) { return doc.email == email }, function(doc) {
@@ -221,26 +222,29 @@ couchParty.resetToken = function(baseURL, email, callback) {
     delete doc._id
     //Extend the userDb's "user" doc with the new token:  
     _pouch.extend(userDb, 'user', doc, function(doc) {
+      //make sure the change is synced: 
+      couchParty.syncSomeone(baseURL, doc.db_id)      
       //and now send the token back: 
       callback(null, secretToken)       
     })
   })
 }
 
-couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {
+couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {          
   var dbUsers = new PouchDB(baseURL + '_users')  
-  _pouch.find(dbUsers, function(doc) { return doc.secret_token == secretToken }, function(doc) {
-    if(!doc) return callback('The token is invalid or expired.')
-    doc.password = newPass
-    delete doc.secret_token
-    var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())        
-    userDb.put(doc, function(err, res) {
-      if(err) {
-        console.log(err)
-        return callback(err)
-      }
-      callback(null)
-    })
+  _pouch.find(dbUsers, function(doc) { return doc.secret_token == secretToken }, function(userDoc) {
+    if(!userDoc) return callback('The reset token is invalid or expired.')
+    bcrypt.hash(newPass, 10, function(err, hash) {
+      if(err) return console.log(err)
+      userDoc.password = hash
+      var userDb = new PouchDB(baseURL + '_user_' + userDoc._id) 
+      delete userDoc.secret_token
+      delete userDoc._id
+      _pouch.extend(userDb, 'user', userDoc, function(resultingDoc) {
+        couchParty.syncSomeone(baseURL, userDoc.db_id)
+        callback(null)
+      })
+    })    
   })
 }
 
