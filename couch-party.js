@@ -33,7 +33,6 @@ couchParty.login = function(baseURL, login, callback) {
         userDoc = _.extend(doc, userDoc)
         callback(null, userDoc)
       })
-
     })
   })
 }
@@ -266,6 +265,21 @@ couchParty.updatePass = function(baseURL, email, newPass, callback) {
         callback(null)
       })    
     })    
+  })
+}
+
+//Delete a user: 
+couchParty.remove = function(baseURL, email, callback) {
+  var dbUsers = new PouchDB(baseURL + '_users') 
+  _pouch.findWhere(dbUsers, { email : email }, function(userDoc) {
+    dbUsers.remove(userDoc, function(err, res) {
+      if(err) return callback(err)
+      var userDb = new PouchDB(baseURL + '_user_' + userDoc._id)
+      userDb.destroy(function(err, res) {
+        if(err) return callback(err)
+        callback(null)            
+      })
+    })
   })
 }
 
