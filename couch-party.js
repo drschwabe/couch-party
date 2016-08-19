@@ -13,7 +13,7 @@ couchParty.login = function(baseURL, login, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
   //^ "_users" part appended automatically, 
   //which results in a db name of ie: "myproject_users"
-  _pouch.find(dbUsers, function(doc) { return doc.nickname == login.nickOrEmail || doc.email == login.nickOrEmail }, function(doc) {
+  _pouch.find(dbUsers, function(doc) { return doc.nickname == login.nickOrEmail || doc.email == login.nickOrEmail || doc.email == login.email || doc.nickname == login.nickname }, function(doc) {
 
     //If user does not exist:
     if(_.isUndefined(doc)) return callback('No user with that nickname or email.')
@@ -94,32 +94,24 @@ couchParty.verify = function(baseURL, signupToken, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
   _pouch.find(dbUsers, function(doc) { return doc.signup_token == signupToken }, function(doc) {
     if(!doc) return callback('The token is invalid or expired.')    
-    //Delete the signup_token
-    delete doc.signup_token
     doc.verified = true
     delete doc._rev //< Remove this so we can update the doc in the user db.
     var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
     doc._id = 'user' //< Change id to just 'user' to fit the user db doc's model.    
     userDb.get('user', function(err, originalDoc) {
       if(err) return callback(err)
-      console.log('here is the originalDoc from userDb: ')
-      console.log(originalDoc)
-      //Update the rev so we can modfiy this doc: 
-      //doc._rev = originalDoc._rev
       doc = _.extend(doc, originalDoc)
+      //Delete the signup_token: 
+      delete doc.signup_token
       userDb.put(doc, function(err, res) {
         if(err) {
           console.log(err)
           return callback(err)
         }
-        console.log('userDb put success')
-        console.log(res)
         doc._rev = res.rev
-        if(callback) return callback(null, doc)
-        //TODO: remove the unneeded doc.signup_token from the public users db
-        //(syncEverybody extends, does not replace the original publicUsersDb doc)
         //Do a one time sync: 
         couchParty.syncSomeone(baseURL, doc.db_id)        
+        if(callback) return callback(null, doc)        
       })        
     })
   })  
@@ -280,6 +272,15 @@ couchParty.remove = function(baseURL, email, callback) {
         callback(null)            
       })
     })
+  })
+}
+
+//Check if email is already in use: 
+couchParty.isEmailAvail = function(baseURL, email, callback) {
+  var dbUsers = new PouchDB(baseURL + '_users')
+  _pouch.findWhere(dbUsers, { email: email }, function(doc) {
+    if(doc) return callback(false) 
+    else return callback(true)
   })
 }
 
