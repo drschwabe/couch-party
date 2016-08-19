@@ -109,8 +109,9 @@ couchParty.verify = function(baseURL, signupToken, callback) {
           return callback(err)
         }
         doc._rev = res.rev
+
         //Do a one time sync: 
-        couchParty.syncSomeone(baseURL, doc.db_id)        
+        couchParty.syncSomeone(baseURL, doc.db_id, true)        
         if(callback) return callback(null, doc)        
       })        
     })
@@ -177,11 +178,16 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
       console.log(change.doc)
       console.log('-------------------')
 
-      //Throw away the id and rev...
-      delete change.doc._id
-      //Put in the master users db:
-      _pouch.extend(dbUsers, userId, change.doc, function(updatedDoc) {
-        console.log('Change applied successfully.')
+      //Put in the master users db...
+      //overwrite, mirroring the two docs: 
+      dbUsers.get(userId, function(err, dbUsersDoc) {
+        //apply the existing rev and id: 
+        change.doc._rev = dbUsersDoc._rev
+        change.doc._id = dbUsersDoc._id
+        dbUsers.put(change.doc, function(err, res) {
+          if(err) return console.log(err) 
+          console.log('Change applied successfully.')            
+        })
       })
     })
     .on('error', function (err) {
@@ -214,7 +220,7 @@ couchParty.resetToken = function(baseURL, email, callback) {
     //Extend the userDb's "user" doc with the new token:  
     _pouch.extend(userDb, 'user', doc, function(doc) {
       //make sure the change is synced: 
-      couchParty.syncSomeone(baseURL, doc.db_id)      
+      couchParty.syncSomeone(baseURL, doc.db_id, false, true)      
       //and now send the token back: 
       callback(null, secretToken)       
     })
@@ -227,13 +233,19 @@ couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {
     if(!userDoc) return callback('The reset token is invalid or expired.')
     bcrypt.hash(newPass, 10, function(err, hash) {
       if(err) return console.log(err)
-      userDoc.password = hash
+      //Apply change to userDb...
       var userDb = new PouchDB(baseURL + '_user_' + userDoc._id) 
-      delete userDoc.secret_token
-      delete userDoc._id
-      _pouch.extend(userDb, 'user', userDoc, function(resultingDoc) {
-        couchParty.syncSomeone(baseURL, userDoc.db_id)
-        callback(null)
+      userDb.get('user', function(err, existingUserDoc) { //< get the rev
+        existingUserDoc.password = hash        
+        //delete unneeded token: 
+        delete existingUserDoc.secret_token
+        //now update: 
+        userDb.put(existingUserDoc, function(err, res) {
+          if(err) return console.log(err)
+          //and do a sync to ensure change is applied to back master usersDb: 
+          couchParty.syncSomeone(baseURL, userDoc.db_id)     
+          callback(null)                        
+        })        
       })
     })    
   })
