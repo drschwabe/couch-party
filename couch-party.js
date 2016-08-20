@@ -9,11 +9,21 @@ var couchParty = {}
 couchParty.login = function(baseURL, login, callback) {
   //^ string, object, function
   //baseURL parameter should have format like: "http://admin:admin@localhost:5984/myproject" 
-  //Find the id which corresponds to the nickname...
+
+  //Connect to master users database: 
   var dbUsers = new PouchDB(baseURL + '_users')
   //^ "_users" part appended automatically, 
   //which results in a db name of ie: "myproject_users"
-  _pouch.find(dbUsers, function(doc) { return doc.nickname == login.nickOrEmail || doc.email == login.nickOrEmail || doc.email == login.email || doc.nickname == login.nickname }, function(doc) {
+
+  //Parse the login object and standardize it: 
+  const standardLogin = {}
+  if(login.email) standardLogin.nickOrEmail = login.email 
+  else if (login.nickOrEmail) standardLogin.nickOrEmail = login.nickOrEmail
+  else if(login.nickname) standardLogin.nickOrEmail = login.nickname
+  else return callback('Login object missing required nickname or email.')
+
+  //Find the user who matches:
+  _pouch.find(dbUsers, function(doc) { return doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail }, function(doc) {
 
     //If user does not exist:
     if(_.isUndefined(doc)) return callback('No user with that nickname or email.')
