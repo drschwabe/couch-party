@@ -51,10 +51,13 @@ couchParty.register = function(baseURL, login, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
 
   //Check for existing user based on email address: 
-  _pouch.find(dbUsers, function(doc) { return doc.email == login.email }, function(doc) {
+  _pouch.find(dbUsers, function(doc) { return doc.email == login.email || doc.nickname == login.nickname }, function(doc) {
     //If user exists:
     if(doc) {
-      return callback('A user with that email already exists.')
+      var msg 
+      if(doc.email == login.email) msg = 'A user with that email already exists.'
+      if(doc.nickname == login.nickname) msg = 'That nickname is already taken.'
+      return callback(msg)
     } else {
       //Creates a doc in the "baseName_users" database:
       doc = login
@@ -301,6 +304,14 @@ couchParty.remove = function(baseURL, email, callback) {
 couchParty.isEmailAvail = function(baseURL, email, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
   _pouch.findWhere(dbUsers, { email: email }, function(doc) {
+    if(doc) return callback(false) 
+    else return callback(true)
+  })
+}
+
+couchParty.isNickAvail = function(baseURL, nickname, callback) {
+  var dbUsers = new PouchDB(baseURL + '_users')
+  _pouch.findWhere(dbUsers, { nickname: nickname }, function(doc) {
     if(doc) return callback(false) 
     else return callback(true)
   })
