@@ -93,8 +93,12 @@ couchParty.register = function(baseURL, login, callback) {
           }
           userDb.put(userDoc, function(err, res) {
             if(err) return console.log(err)
-            console.log(res)
-            callback(null, doc.signup_token)
+            console.log('Registration success!')
+            //Return the signup token and a copy of the userdoc: 
+            callback(null, {
+              signup_token: doc.signup_token, 
+              user_doc: userDoc
+            })
           })
         })      
       })
