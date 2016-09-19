@@ -222,6 +222,22 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
   }, 1800000) //< 30 minutes. 
 }
 
+//Take the given user's doc from primary db and use it to extend the user doc in it's secondary db: 
+couchParty.primaryExtend = function(baseURL, userId, callback) {
+  var dbUsers = new PouchDB(baseURL + '_users')  
+  var userDb = new PouchDB(baseURL + '_user_' + userId) 
+
+  //Put in the master users db...
+  //overwrite, mirroring the two docs: 
+  dbUsers.get(userId, function(err, userDoc) {
+    if(err) return console.log(err)
+    userDoc._id = 'user'
+    _pouch.extend(userDb, 'user', userDoc, function(newDoc) {
+      callback(null, newDoc)
+    })
+  })
+}
+
 //TODO: make an alias for "resetLink"
 couchParty.resetToken = function(baseURL, email, callback) {
   var secretToken = require('crypto').randomBytes(64).toString('hex')
