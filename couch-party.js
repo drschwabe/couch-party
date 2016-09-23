@@ -73,16 +73,8 @@ couchParty.register = function(baseURL, login, callback) {
         doc.password = hash
         dbUsers.post(doc, function(err, res) {
           if(err) return console.log(err)
-          console.log(res)
           //Now create a unique database for the user:
           var userDbName = baseURL.split("/").pop() + '_user_' + res.id
-
-          console.log('### userDbName ###')
-          console.log(userDbName)
-
-          console.log('### userDb address ###')
-          console.log(_s.strLeftBack(baseURL, '/') + '/' + userDbName)          
-
           //^^ strip out the address. 
           var userDb = new PouchDB(_s.strLeftBack(baseURL, '/') + '/' + userDbName)
           //Make a single 'user' doc with reference to id and new database:
@@ -93,7 +85,6 @@ couchParty.register = function(baseURL, login, callback) {
           }
           userDb.put(userDoc, function(err, res) {
             if(err) return console.log(err)
-            console.log('Registration success!')
             //Return the signup token and a copy of the userdoc: 
             callback(null, {
               signup_token: doc.signup_token, 
@@ -191,10 +182,7 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
   var userDb = new PouchDB(baseURL + '_user_' + userId)
   var changes = userDb.changes({live: live, include_docs: true, doc_ids: ['user']})
     .on('change', function(change) {
-      console.log('Change to be applied for ' + userId)
-      console.log(change.doc)
-      console.log('-------------------')
-
+      console.log('Change detected for ' + userId)
       //Put in the master users db...
       //overwrite, mirroring the two docs: 
       dbUsers.get(userId, function(err, dbUsersDoc) {
@@ -203,7 +191,7 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
         change.doc._id = dbUsersDoc._id
         dbUsers.put(change.doc, function(err, res) {
           if(err) return console.log(err) 
-          console.log('Change applied successfully.')            
+          console.log('Change applied to partyDB successfully.')            
         })
       })
     })
