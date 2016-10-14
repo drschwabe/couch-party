@@ -1,6 +1,6 @@
 {
   "name": "couch-party",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A set of functions for building Couch/PouchDB driven community apps.",
   "main": "couch-party.js",
   "license": "MIT",
@@ -28,7 +28,7 @@
   "dependencies": {
     "bcrypt": "^0.8.7",
     "pouchdb": "^5.3.0",
-    "underpouch": "^0.3.1",
+    "underpouch": "0.3.4",
     "underscore": "^1.8.3",
     "underscore.string": "^3.3.4"
   }

@@ -140,7 +140,6 @@ couchParty.syncEverybody = function(baseURL) {
       userDb.changes({live:true, include_docs: true, doc_ids: ['user']})
         .on('change', function(change) {
           console.log('Change to be applied for ' + userDoc.email)
-          console.log(change.doc)
           console.log('-------------------')
           //Throw away the id and rev:
           delete change.doc._id
@@ -323,6 +322,22 @@ couchParty.isNickAvail = function(baseURL, nickname, callback) {
     if(doc) return callback(false) 
     else return callback(true)
   })
+}
+
+//Selectively filter user data from partyDB to the publicDB: 
+//(ie: for public facing data on user profile pages)
+couchParty.publicParty = function(baseURL, fields) {
+  var publicDB = new PouchDB(baseURL + '_public')
+  var partyDB = new PouchDB(baseURL + '_users')
+  partyDB.changes({ live: true, since: 'now', include_docs: true })
+    .on('change', function(change) {
+      console.log('there was a partyDB change...')
+      //For the changed document; send only the fields provided...
+      //as well as the _id:       
+      fields.push('_id')
+      var doc = _.pick(change.doc, fields)
+      _pouch.replace(publicDB, doc, (res) => console.log('replaced doc'))
+    })
 }
 
 module.exports = couchParty
