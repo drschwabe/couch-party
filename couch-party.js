@@ -51,12 +51,16 @@ couchParty.register = function(baseURL, login, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
 
   //Check for existing user based on email address: 
-  _pouch.find(dbUsers, function(doc) { return doc.email == login.email || doc.nickname == login.nickname }, function(doc) {
+  _pouch.find(dbUsers, function(doc) { 
+    if(doc.email === login.email) return doc
+    if(login.nickname && doc.nickname === login.nickname) return doc 
+    //^ Important to only try nickname match if a nickname was provided.
+  }, function(err, doc) {
     //If user exists:
     if(doc) {
       var msg 
       if(doc.email == login.email) msg = 'A user with that email already exists.'
-      if(doc.nickname == login.nickname) msg = 'That nickname is already taken.'
+      if(login.nickname && doc.nickname == login.nickname) msg = 'That nickname is already taken.'
       return callback(msg)
     } else {
       //Creates a doc in the "baseName_users" database:
@@ -86,7 +90,7 @@ couchParty.register = function(baseURL, login, callback) {
           userDb.put(userDoc, function(err, res) {
             if(err) return console.log(err)
             //Return the signup token and a copy of the userdoc: 
-            callback(null, {
+            if(callback) return callback(null, {
               signup_token: doc.signup_token, 
               user_doc: userDoc
             })
