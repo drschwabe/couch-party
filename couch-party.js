@@ -105,7 +105,10 @@ couchParty.verify = function(baseURL, signupToken, callback) {
   console.log('verify user...')
   var dbUsers = new PouchDB(baseURL + '_users')
   _pouch.find(dbUsers, function(doc) { return doc.signup_token == signupToken }, function(doc) {
-    if(!doc) return callback('The token is invalid or expired.')    
+    if(!doc) {
+      if(callback) return callback('The token is invalid or expired.') 
+      else return console.log('The token is invalid or expired.')
+    }    
     doc.verified = true
     delete doc._rev //< Remove this so we can update the doc in the user db.
     var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
@@ -118,7 +121,8 @@ couchParty.verify = function(baseURL, signupToken, callback) {
       userDb.put(doc, function(err, res) {
         if(err) {
           console.log(err)
-          return callback(err)
+          if(callback) return callback(err)
+          else return
         }
         doc._rev = res.rev
 
