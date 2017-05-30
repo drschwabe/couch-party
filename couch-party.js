@@ -194,6 +194,7 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
       //overwrite, mirroring the two docs: 
       dbUsers.get(userId, function(err, dbUsersDoc) {
         //apply the existing rev and id: 
+        if(err) return console.log(err)
         change.doc._rev = dbUsersDoc._rev
         change.doc._id = dbUsersDoc._id
         dbUsers.put(change.doc, function(err, res) {
