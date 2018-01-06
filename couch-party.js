@@ -26,7 +26,7 @@ couchParty.login = function(baseURL, login, callback) {
   _pouch.find(dbUsers, function(doc) { return doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail }, function(doc) {
 
     //If user does not exist:
-    if(_.isUndefined(doc)) return callback('No user with that nickname or email.')
+    if(_.isUndefined(doc)) return callback('No user with that nickname or email (' + doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail + ')')
 
     //Password check:
     bcrypt.compare(login.password, doc.password, function(err, res) {
