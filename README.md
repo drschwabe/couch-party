@@ -125,5 +125,30 @@ app.post('/api/reset/:secretToken', function(req, res) {
 
 
 
+## API
+
+**register**  
+`couchParty.register(baseURL, login, callback)`  
+Registers a new user, accepting either a username/email or both and a password.  The password is hashed before saving into the database. 
+
+```javascript
+  couchParty.register('http://localhost:5984/wedding_', { email:  'mike@gmail.com', password : '6969booyeah' }, (err, signupToken) => {
+    //signupToken = { signup_token : 'ba1b581b3318ff102bca0fc69ae688' }
+    //now you can send an email to the user with this token for verification
+  })
+```
+
+**verify**  
+`couchParty.verify(baseURL, signupToken, callback)`  
+Finds the user who matches the supplied token and marks that user's doc as { verified : true }
+Returns an err if no match (or db problem) or the updated user doc if successful.
+
+```javascript
+  couchParty.verify('http://localhost:5984/wedding_', { token : 'ba1b581b3318ff10' }, (err, userDoc) => {
+    //userDoc =  { email:  'mike@gmail.com', password : 'afsadfaasdlkj33', verified : true }
+  })
+```
+
+
 
 

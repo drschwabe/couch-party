@@ -6,47 +6,6 @@ var PouchDB = require('pouchdb'),
 
 var couchParty = {}
 
-couchParty.login = function(baseURL, login, callback) {
-  //^ string, object, function
-  //baseURL parameter should have format like: "http://admin:admin@localhost:5984/myproject" 
-
-  //Connect to master users database: 
-  var dbUsers = new PouchDB(baseURL + '_users')
-  //^ "_users" part appended automatically, 
-  //which results in a db name of ie: "myproject_users"
-
-  //Parse the login object and standardize it: 
-  const standardLogin = {}
-  if(login.email) standardLogin.nickOrEmail = login.email 
-  else if (login.nickOrEmail) standardLogin.nickOrEmail = login.nickOrEmail
-  else if(login.nickname) standardLogin.nickOrEmail = login.nickname
-  else return callback('Login object missing required nickname or email.')
-
-  //Find the user who matches:
-  _pouch.find(dbUsers, function(doc) { return doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail }, function(doc) {
-
-    //If user does not exist:
-    if(_.isUndefined(doc)) return callback('No user with that nickname or email (' + doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail + ')')
-
-    //Password check:
-    bcrypt.compare(login.password, doc.password, function(err, res) {
-      if(err) return console.log(err)
-      if(!res) return callback('Incorrect password.')
-
-      //Now connect to the corresponding (existing) database
-      //which is based on the user's couch generated hash (but in lower case)
-      var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
-
-      userDb.get('user', function(err, userDoc) {
-        if(err) return callback(err)
-        //Merge in the email and nickname from the previous doc:
-        userDoc = _.extend(doc, userDoc)
-        callback(null, userDoc)
-      })
-    })
-  })
-}
-
 couchParty.register = function(baseURL, login, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
 
@@ -133,6 +92,48 @@ couchParty.verify = function(baseURL, signupToken, callback) {
     })
   })  
 }
+
+couchParty.login = function(baseURL, login, callback) {
+  //^ string, object, function
+  //baseURL parameter should have format like: "http://admin:admin@localhost:5984/myproject" 
+
+  //Connect to master users database: 
+  var dbUsers = new PouchDB(baseURL + '_users')
+  //^ "_users" part appended automatically, 
+  //which results in a db name of ie: "myproject_users"
+
+  //Parse the login object and standardize it: 
+  const standardLogin = {}
+  if(login.email) standardLogin.nickOrEmail = login.email 
+  else if (login.nickOrEmail) standardLogin.nickOrEmail = login.nickOrEmail
+  else if(login.nickname) standardLogin.nickOrEmail = login.nickname
+  else return callback('Login object missing required nickname or email.')
+
+  //Find the user who matches:
+  _pouch.find(dbUsers, function(doc) { return doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail }, function(doc) {
+
+    //If user does not exist:
+    if(_.isUndefined(doc)) return callback('No user with that nickname or email (' + doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail + ')')
+
+    //Password check:
+    bcrypt.compare(login.password, doc.password, function(err, res) {
+      if(err) return console.log(err)
+      if(!res) return callback('Incorrect password.')
+
+      //Now connect to the corresponding (existing) database
+      //which is based on the user's couch generated hash (but in lower case)
+      var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
+
+      userDb.get('user', function(err, userDoc) {
+        if(err) return callback(err)
+        //Merge in the email and nickname from the previous doc:
+        userDoc = _.extend(doc, userDoc)
+        callback(null, userDoc)
+      })
+    })
+  })
+}
+
 
 couchParty.syncEverybody = function(baseURL) {
   //### User database changes ###
@@ -234,28 +235,6 @@ couchParty.primaryExtend = function(baseURL, userId, callback) {
   })
 }
 
-//TODO: make an alias for "resetLink"
-couchParty.resetToken = function(baseURL, email, callback) {
-  var secretToken = require('crypto').randomBytes(64).toString('hex')
-  var dbUsers = new PouchDB(baseURL + '_users')
-  _pouch.find(dbUsers, function(doc) { return doc.email == email }, function(doc) {
-    if(_.isUndefined(doc)) return callback('No user with that email exists.')
-    //Apply the token to the user's db...
-    doc.secret_token = secretToken
-    //Get the userDb: 
-    var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
-    //Remove the doc id so _pouch.extend works: 
-    delete doc._id
-    //Extend the userDb's "user" doc with the new token:  
-    _pouch.extend(userDb, 'user', doc, function(doc) {
-      //make sure the change is synced: 
-      couchParty.syncSomeone(baseURL, doc.db_id, false, true)      
-      //and now send the token back: 
-      callback(null, secretToken)       
-    })
-  })
-}
-
 couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {          
   var dbUsers = new PouchDB(baseURL + '_users')  
   _pouch.find(dbUsers, function(doc) { return doc.secret_token == secretToken }, function(userDoc) {
@@ -300,6 +279,30 @@ couchParty.updatePass = function(baseURL, email, newPass, callback) {
     })    
   })
 }
+
+couchParty.resetToken = function(baseURL, email, callback) {
+  var secretToken = require('crypto').randomBytes(64).toString('hex')
+  var dbUsers = new PouchDB(baseURL + '_users')
+  _pouch.find(dbUsers, function(doc) { return doc.email == email }, function(doc) {
+    if(_.isUndefined(doc)) return callback('No user with that email exists.')
+    //Apply the token to the user's db...
+    doc.secret_token = secretToken
+    //Get the userDb: 
+    var userDb = new PouchDB(baseURL + '_user_' + doc._id.toLowerCase())
+    //Remove the doc id so _pouch.extend works: 
+    delete doc._id
+    //Extend the userDb's "user" doc with the new token:  
+    _pouch.extend(userDb, 'user', doc, function(doc) {
+      //make sure the change is synced: 
+      couchParty.syncSomeone(baseURL, doc.db_id, false, true)      
+      //and now send the token back: 
+      callback(null, secretToken)       
+    })
+  })
+}
+//Alias: 
+couchParty.resetLink = couchParty.resetToken
+
 
 //Delete a user: 
 couchParty.remove = function(baseURL, email, callback) {
