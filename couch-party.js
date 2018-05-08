@@ -63,7 +63,7 @@ couchParty.register = function(baseURL, login, callback) {
 couchParty.verify = function(baseURL, signupToken, callback) {
   console.log('verify user...')
   var dbUsers = new PouchDB(baseURL + '_users')
-  _pouch.find(dbUsers, function(doc) { return doc.signup_token == signupToken }, function(doc) {
+  _pouch.find(dbUsers, function(doc) { return doc.signup_token == signupToken }, function(err, doc) {
     if(!doc) {
       if(callback) return callback('The token is invalid or expired.') 
       else return console.log('The token is invalid or expired.')
@@ -110,10 +110,12 @@ couchParty.login = function(baseURL, login, callback) {
   else return callback('Login object missing required nickname or email.')
 
   //Find the user who matches:
-  _pouch.find(dbUsers, function(doc) { return doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail }, function(doc) {
+  _pouch.find(dbUsers, function(doc) { return doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail }, function(err, doc) {
+
+    if(err) return callback(err) 
 
     //If user does not exist:
-    if(_.isUndefined(doc)) return callback('No user with that nickname or email (' + doc.nickname == standardLogin.nickOrEmail || doc.email == standardLogin.nickOrEmail + ')')
+    if(_.isUndefined(doc)) return callback('No user with that nickname or email (' + standardLogin.nickOrEmail + ')')
 
     //Password check:
     bcrypt.compare(login.password, doc.password, function(err, res) {
@@ -141,7 +143,7 @@ couchParty.syncEverybody = function(baseURL) {
   //(if password or email change happened in user's database,
   //this needs to be applied to master users db (baseName_users))
   var dbUsers = new PouchDB(baseURL + '_users')
-  _pouch.all(dbUsers, function(userDocs) {
+  _pouch.all(dbUsers, function(err, userDocs) {
     if(!_.isArray(userDocs)) userDocs = [userDocs]
     userDocs.forEach(function(userDoc) {
       //Create a new changes feed...
@@ -229,7 +231,7 @@ couchParty.primaryExtend = function(baseURL, userId, callback) {
   dbUsers.get(userId, function(err, userDoc) {
     if(err) return console.log(err)
     userDoc._id = 'user'
-    _pouch.extend(userDb, 'user', userDoc, function(newDoc) {
+    _pouch.extend(userDb, 'user', userDoc, function(err, newDoc) {
       callback(null, newDoc)
     })
   })
@@ -237,7 +239,7 @@ couchParty.primaryExtend = function(baseURL, userId, callback) {
 
 couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {          
   var dbUsers = new PouchDB(baseURL + '_users')  
-  _pouch.find(dbUsers, function(doc) { return doc.secret_token == secretToken }, function(userDoc) {
+  _pouch.find(dbUsers, function(doc) { return doc.secret_token == secretToken }, function(err, userDoc) {
     if(!userDoc) return callback('The reset token is invalid or expired.')
     bcrypt.hash(newPass, 10, function(err, hash) {
       if(err) return console.log(err)
@@ -261,7 +263,7 @@ couchParty.resetPass = function(baseURL, secretToken, newPass, callback) {
 
 couchParty.updatePass = function(baseURL, email, newPass, callback) {
   var dbUsers = new PouchDB(baseURL + '_users') 
-  _pouch.findWhere(dbUsers, { email : email }, function(userDoc) {
+  _pouch.findWhere(dbUsers, { email : email }, function(err, userDoc) {
     //Encrypt the newpass: 
     bcrypt.hash(newPass, 10, function(err, hash) {
       if(err) return console.log(err)
@@ -273,7 +275,7 @@ couchParty.updatePass = function(baseURL, email, newPass, callback) {
 
       //We apply the change to the userDb which will
       //replicate back to dbUsers via couchParty.syncSomone or couchParty.SyncEverybody
-      _pouch.extend(userDb, 'user', userDoc, function(updatedUserDoc) {
+      _pouch.extend(userDb, 'user', userDoc, function(err, updatedUserDoc) {
         callback(null)
       })    
     })    
@@ -283,7 +285,7 @@ couchParty.updatePass = function(baseURL, email, newPass, callback) {
 couchParty.resetToken = function(baseURL, email, callback) {
   var secretToken = require('crypto').randomBytes(64).toString('hex')
   var dbUsers = new PouchDB(baseURL + '_users')
-  _pouch.find(dbUsers, function(doc) { return doc.email == email }, function(doc) {
+  _pouch.find(dbUsers, function(doc) { return doc.email == email }, function(err, doc) {
     if(_.isUndefined(doc)) return callback('No user with that email exists.')
     //Apply the token to the user's db...
     doc.secret_token = secretToken
@@ -292,7 +294,7 @@ couchParty.resetToken = function(baseURL, email, callback) {
     //Remove the doc id so _pouch.extend works: 
     delete doc._id
     //Extend the userDb's "user" doc with the new token:  
-    _pouch.extend(userDb, 'user', doc, function(doc) {
+    _pouch.extend(userDb, 'user', doc, function(err, doc) {
       //make sure the change is synced: 
       couchParty.syncSomeone(baseURL, doc.db_id, false, true)      
       //and now send the token back: 
@@ -307,7 +309,7 @@ couchParty.resetLink = couchParty.resetToken
 //Delete a user: 
 couchParty.remove = function(baseURL, email, callback) {
   var dbUsers = new PouchDB(baseURL + '_users') 
-  _pouch.findWhere(dbUsers, { email : email }, function(userDoc) {
+  _pouch.findWhere(dbUsers, { email : email }, function(err, userDoc) {
     dbUsers.remove(userDoc, function(err, res) {
       if(err) return callback(err)
       var userDb = new PouchDB(baseURL + '_user_' + userDoc._id)
@@ -322,7 +324,7 @@ couchParty.remove = function(baseURL, email, callback) {
 //Check if email is already in use: 
 couchParty.isEmailAvail = function(baseURL, email, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
-  _pouch.findWhere(dbUsers, { email: email }, function(doc) {
+  _pouch.findWhere(dbUsers, { email: email }, function(err, doc) {
     if(doc) return callback(false) 
     else return callback(true)
   })
@@ -330,7 +332,7 @@ couchParty.isEmailAvail = function(baseURL, email, callback) {
 
 couchParty.isNickAvail = function(baseURL, nickname, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
-  _pouch.findWhere(dbUsers, { nickname: nickname }, function(doc) {
+  _pouch.findWhere(dbUsers, { nickname: nickname }, function(err, doc) {
     if(doc) return callback(false) 
     else return callback(true)
   })
@@ -348,7 +350,7 @@ couchParty.publicParty = function(baseURL, fields) {
       //as well as the _id:       
       fields.push('_id')
       var doc = _.pick(change.doc, fields)
-      _pouch.replace(publicDB, doc, (res) => console.log('replaced doc'))
+      _pouch.replace(publicDB, doc, (err, res) => console.log('replaced doc'))
     })
 }
 
