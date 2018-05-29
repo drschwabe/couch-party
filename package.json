@@ -36,6 +36,7 @@
     "test": "tape test.js | tap-spec"
   },
   "devDependencies": {
+    "rimraf": "^2.6.2",
     "spawn-pouchdb-server": "^3.3.3",
     "tap-spec": "^4.1.1",
     "tape": "^4.6.3"
