@@ -58,6 +58,25 @@ rimraf('./test/pouch', (err) => {
         //and that user is not confirmed/verified yet. 
       })
     })
+
+
+    test('Username already taken', (t) => {
+      t.plan(1) 
+      var couchParty = requireUncached('./couch-party.js')
+
+      var registrant = {
+        nickname : 'Sarah', 
+        email : 'sara@geemail.com', 
+        password : 'w00t'
+      }
+
+      couchParty.register(baseDbURL, registrant, (err, res) => {
+        if(!err) return t.fail('no err was provided, but that username should be taken')
+        t.equals(err, 'That nickname is already taken.', 'Duplicate username registration rejected with relevant error.')
+      })      
+
+    })
+
   })
 })
 
