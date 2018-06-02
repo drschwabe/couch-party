@@ -77,9 +77,29 @@ rimraf('./test/pouch', (err) => {
 
     })
 
+    test('Email already in use', (t) => {
+      t.plan(1)
+      var couchParty = requireUncached('./couch-party.js')
+
+      var originalRegistrant = {
+        email : 'steve@geemail.com', 
+        password : 'jumparound'
+      }
+
+      couchParty.register(baseDbURL, originalRegistrant, (err, res) => {
+        if(err) return t.fail(err)
+
+        var registrantAgainWithSameEmailDiffPass = {
+          email : 'steve@geemail.com', 
+          password : 'jumparoundagain'
+        }          
+
+        couchParty.register(baseDbURL, registrantAgainWithSameEmailDiffPass, (err, res) => {
+          if(!err) return t.fail('no err was provided, but that email should be taken')
+          t.equals(err, 'A user with that email already exists.', 'Duplicate email registration rejected with relevant error.')
+        })
+
+      })   
+    })
   })
 })
-
-
-
-
