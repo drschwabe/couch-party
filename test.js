@@ -25,14 +25,16 @@ rimraf('./test/pouch', (err) => {
     // ### Start Tests ###
 
     test.onFinish(() => {
-      dbServer.stop(function () {
-        console.log('PouchDB Server stopped.')
-      })
+      setTimeout(() => {
+        dbServer.stop(() => {
+          console.log('PouchDB Server stopped.')
+        })
+      }, 500)
     })
 
     var baseDbURL = 'http://localhost:5988/party'
 
-    test('Can register a user', (t) => {
+    test('Can register a user', (t) => { 
       t.plan(5) 
       var couchParty = requireUncached('./couch-party.js')
 
@@ -61,6 +63,8 @@ rimraf('./test/pouch', (err) => {
 
 
     test('Username already taken', (t) => {
+      //TODO: make this test.only-able 
+      //(currently relies on prior test)
       t.plan(1) 
       var couchParty = requireUncached('./couch-party.js')
 
@@ -100,6 +104,30 @@ rimraf('./test/pouch', (err) => {
         })
 
       })   
+    })
+
+    test('Can verify a user', (t) => {
+      t.plan(1)
+      var couchParty = requireUncached('./couch-party.js')
+
+      var registrant = {
+        email : 'jeff@geemail.com', 
+        password : 'dinosaurssuck'
+      }
+
+      couchParty.register(baseDbURL, registrant, (err, res) => {
+        if(err) return t.fail(err)
+
+        couchParty.verify(baseDbURL, res.signup_token, (err, res) => {
+          if(err) return t.fail(err) 
+          console.log(res)
+          setTimeout(() => {
+            t.pass('User verified ok')
+          }, 2000)
+          
+          //t.end() 
+        })
+      })
     })
   })
 })
