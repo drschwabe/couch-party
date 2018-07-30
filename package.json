@@ -28,6 +28,7 @@
   "dependencies": {
     "bcrypt": "^0.8.7",
     "pouchdb": "^7.0.0",
+    "require-uncached": "^1.0.3",
     "underpouch": "1.0.0",
     "underscore": "^1.8.3",
     "underscore.string": "^3.3.4"
