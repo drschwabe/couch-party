@@ -31,13 +31,14 @@
     "underpouch": "1.x",
     "underscore": "1.x",
     "underscore.string": "3.x"
+  }, 
   "scripts": {
     "test": "tape test.js | tap-spec"
   },
   "devDependencies": {
-    "spawn-pouchdb-server": "^3.3.3",
-    "rimraf": "^2.6.2",
-    "tape": "^4.6.3"
-    "tap-spec": "^4.1.1",
+    "spawn-pouchdb-server": "3.x",
+    "rimraf": "2.x",
+    "tape": "4.x", 
+    "tap-spec": "4.x"
   }
 }
