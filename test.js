@@ -28,6 +28,7 @@ rimraf('./test/pouch', (err) => {
       setTimeout(() => {
         dbServer.stop(() => {
           console.log('PouchDB Server stopped.')
+          process.exit() 
         })
       }, 500)
     })
@@ -121,11 +122,9 @@ rimraf('./test/pouch', (err) => {
         couchParty.verify(baseDbURL, res.signup_token, (err, res) => {
           if(err) return t.fail(err) 
           console.log(res)
-          setTimeout(() => {
-            t.pass('User verified ok')
-          }, 2000)
-          
-          //t.end() 
+          couchParty.cancel() //Cancel any replication to avoid errors closing.             
+          t.pass('User verified ok')
+          t.end()
         })
       })
     })

@@ -4,7 +4,9 @@ var PouchDB = require('pouchdb'),
     bcrypt = require('bcrypt'),
     _s = require('underscore.string')
 
-var couchParty = {}
+var couchParty = {
+  changes : []
+}
 
 couchParty.register = function(baseURL, login, callback) {
   var dbUsers = new PouchDB(baseURL + '_users')
@@ -148,7 +150,7 @@ couchParty.syncEverybody = function(baseURL) {
     userDocs.forEach(function(userDoc) {
       //Create a new changes feed...
       var userDb = new PouchDB(baseURL + '_user_' + userDoc._id.toLowerCase())
-      userDb.changes({live:true, include_docs: true, doc_ids: ['user']})
+      var userDbChanges = userDb.changes({live:true, include_docs: true, doc_ids: ['user']})
         .on('change', function(change) {
           console.log('Change to be applied for ' + userDoc.email)
           console.log('-------------------')
@@ -168,6 +170,7 @@ couchParty.syncEverybody = function(baseURL) {
         .on('error', function (err) {
           console.log(err)
         })
+      couchParty.changes.push(userDbChanges)
     })
   })
 }
@@ -190,7 +193,7 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
 
   var dbUsers = new PouchDB(baseURL + '_users')  
   var userDb = new PouchDB(baseURL + '_user_' + userId)
-  var changes = userDb.changes({live: live, include_docs: true, doc_ids: ['user']})
+  var userDbChanges = userDb.changes({live: live, include_docs: true, doc_ids: ['user']})
     .on('change', function(change) {
       console.log('Change detected for ' + userId)
       //Put in the master users db...
@@ -214,9 +217,11 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
       console.log(info)
     })
 
+  couchParty.changes.push(userDbChanges)
+
   //Cancel the changes listening / assume user has left the party after x minutes.
   setTimeout(function() {
-    changes.cancel()
+    userDbChanges.cancel()
     partiers = _.without(partiers, userId)
   }, 1800000) //< 30 minutes. 
 }
@@ -343,7 +348,7 @@ couchParty.isNickAvail = function(baseURL, nickname, callback) {
 couchParty.publicParty = function(baseURL, fields) {
   var publicDB = new PouchDB(baseURL + '_public')
   var partyDB = new PouchDB(baseURL + '_users')
-  partyDB.changes({ live: true, since: 'now', include_docs: true })
+  var partyDBchanges = partyDB.changes({ live: true, since: 'now', include_docs: true })
     .on('change', function(change) {
       console.log('there was a partyDB change...')
       //For the changed document; send only the fields provided...
@@ -352,6 +357,19 @@ couchParty.publicParty = function(baseURL, fields) {
       var doc = _.pick(change.doc, fields)
       _pouch.replace(publicDB, doc, (err, res) => console.log('replaced doc'))
     })
+  couchParty.changes.push(partyDBchanges)
+}
+
+couchParty.cancel = () => {
+  if(couchParty.changes.length) {
+    couchParty.changes.forEach((change) => {
+      if(!change) return 
+      change.cancel()
+    }) 
+    console.log('party cancelled!')
+  } else {
+    console.log('no party started :/') 
+  }
 }
 
 module.exports = couchParty
