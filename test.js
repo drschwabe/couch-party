@@ -2,21 +2,21 @@ var test = require('tape'),
     requireUncached = require('require-uncached'),
     rimraf = require('rimraf')
 
-//Remove db directory/purge any data from previous test: 
+//Remove db directory/purge any data from previous test:
 rimraf('./test/pouch', (err) => {
   if(err) return console.log(err)
 
-  //Spin up a db server: 
+  //Spin up a db server:
   var spawnPouchDBServer = require('spawn-pouchdb-server')
   spawnPouchDBServer({
-    port: 5988, 
-    directory: './test/pouch', 
+    port: 5988,
+    directory: './test/pouch',
     log: {
       file: './test/pouch/pouch.log',
     },
     config: {
       file: './test/pouch/config.json'
-    }  
+    }
   }, (error, dbServer) => {
     if(error) return console.log(error)
 
@@ -28,20 +28,20 @@ rimraf('./test/pouch', (err) => {
       setTimeout(() => {
         dbServer.stop(() => {
           console.log('PouchDB Server stopped.')
-          process.exit() 
+          process.exit()
         })
       }, 500)
     })
 
     var baseDbURL = 'http://localhost:5988/party'
 
-    test('Can register a user', (t) => { 
-      t.plan(5) 
+    test('Can register a user', (t) => {
+      t.plan(5)
       var couchParty = requireUncached('./couch-party.js')
 
-      var registrant = {
-        nickname : 'Sarah', 
-        email : 'sara@geemail.com', 
+      let registrant = {
+        nickname : 'Sarah',
+        email : 'sara@geemail.com',
         password : 'w00t'
       }
 
@@ -52,33 +52,33 @@ rimraf('./test/pouch', (err) => {
         t.equals(res.user_doc._id, 'user', 'couchParty user_doc has { _id : "user" }')
         t.ok(res.user_doc.db_id, 'couchParty user_doc has a db_id')
         t.ok(res.user_doc.db_name, 'couchParty user_doc has a db_name')
-        //TODO: ensure db_name is prefixed with party_      
+        //TODO: ensure db_name is prefixed with party_
         t.ok(res.signup_token, 'couchParty response has a signup_token')
 
-        //TODO: query the db and ensure this info is in there: 
+        //TODO: query the db and ensure this info is in there:
         //t.equals(res.email, 'sara@geemail.com')
         //t.equals(res.password, 'w00t')
-        //and that user is not confirmed/verified yet. 
+        //and that user is not confirmed/verified yet.
       })
     })
 
 
     test('Username already taken', (t) => {
-      //TODO: make this test.only-able 
+      //TODO: make this test.only-able
       //(currently relies on prior test)
-      t.plan(1) 
+      t.plan(1)
       var couchParty = requireUncached('./couch-party.js')
 
-      var registrant = {
-        nickname : 'Sarah', 
-        email : 'sara@geemail.com', 
+      let registrant = {
+        nickname : 'Sarah',
+        email : 'sara@geemail.com',
         password : 'w00t'
       }
 
       couchParty.register(baseDbURL, registrant, (err, res) => {
         if(!err) return t.fail('no err was provided, but that username should be taken')
         t.equals(err, 'That nickname is already taken.', 'Duplicate username registration rejected with relevant error.')
-      })      
+      })
 
     })
 
@@ -86,33 +86,33 @@ rimraf('./test/pouch', (err) => {
       t.plan(1)
       var couchParty = requireUncached('./couch-party.js')
 
-      var originalRegistrant = {
-        email : 'steve@geemail.com', 
+      let originalRegistrant = {
+        email : 'steve@geemail.com',
         password : 'jumparound'
       }
 
       couchParty.register(baseDbURL, originalRegistrant, (err, res) => {
         if(err) return t.fail(err)
 
-        var registrantAgainWithSameEmailDiffPass = {
-          email : 'steve@geemail.com', 
+        let registrantAgainWithSameEmailDiffPass = {
+          email : 'steve@geemail.com',
           password : 'jumparoundagain'
-        }          
+        }
 
         couchParty.register(baseDbURL, registrantAgainWithSameEmailDiffPass, (err, res) => {
           if(!err) return t.fail('no err was provided, but that email should be taken')
           t.equals(err, 'A user with that email already exists.', 'Duplicate email registration rejected with relevant error.')
         })
 
-      })   
+      })
     })
 
     test('Can verify a user', (t) => {
       t.plan(1)
       var couchParty = requireUncached('./couch-party.js')
 
-      var registrant = {
-        email : 'jeff@geemail.com', 
+      let registrant = {
+        email : 'jeff@geemail.com',
         password : 'dinosaurssuck'
       }
 
@@ -120,9 +120,9 @@ rimraf('./test/pouch', (err) => {
         if(err) return t.fail(err)
 
         couchParty.verify(baseDbURL, res.signup_token, (err, res) => {
-          if(err) return t.fail(err) 
+          if(err) return t.fail(err)
           console.log(res)
-          couchParty.cancel() //Cancel any replication to avoid errors closing.             
+          couchParty.cancel() //Cancel any replication to avoid errors closing.
           t.pass('User verified ok')
           t.end()
         })
