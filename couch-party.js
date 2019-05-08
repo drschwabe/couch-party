@@ -182,6 +182,7 @@ var partiers = []
 //Just sync this one person
 //TODO: Stop syncing after 90 minutes or specified duration.
 couchParty.syncSomeone = function(baseURL, userId, live) {
+//Syncs the usersDB to master (overwrites it; does not extend!)
   if(_.isNull(live)) live = false
   if( _.contains(partiers, userId)) {
     console.log('Already syncing ' + userId)
@@ -197,19 +198,28 @@ couchParty.syncSomeone = function(baseURL, userId, live) {
   var userDb = new PouchDB(baseURL + '_user_' + userId)
   var userDbChanges = userDb.changes({live: live, include_docs: true, doc_ids: ['user']})
     .on('change', function(change) {
-      console.log('Change detected for ' + userId)
-      //Put in the master users db...
-      //overwrite, mirroring the two docs: 
-      dbUsers.get(userId, function(err, dbUsersDoc) {
-        //apply the existing rev and id: 
-        if(err) return console.log(err)
-        change.doc._rev = dbUsersDoc._rev
-        change.doc._id = dbUsersDoc._id
-        dbUsers.put(change.doc, function(err, res) {
-          if(err) return console.log(err) 
-          console.log('Change applied to partyDB successfully.')            
+        console.log('Change detected for ' + userId)
+        console.log('-------------------')
+        //Throw away the id and rev:
+        delete change.doc._id
+        delete change.doc._rev
+        userDb.get('user', (err, userDoc) => {
+          if(err) return console.log(err)
+
+          dbUsers.get(userId, function(err, dbUsersDoc) {
+            if(err) return console.log(err)
+
+            //Apply any relevant changes; extend the existing userDoc:
+            var updatedDoc = _.extend(userDoc, _.extend(dbUsersDoc, change.doc) )
+
+            //Put in the master users db:
+            dbUsers.put(updatedDoc, function(err, res) {
+              if(err) return console.log(err)
+              console.log('Change applied to partyDB successfully.')
+            })
+          })
+
         })
-      })
     })
     .on('error', function (err) {
       console.log(err)
