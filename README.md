@@ -2,7 +2,7 @@
 
 ALPHA / WIP
 
-A set of functions for building Couch/PouchDB driven multi-user apps.   Currently does basic login, registration, password reset and user profile syncing. 
+A set of functions for building Couch/PouchDB driven multi-user apps.   Currently does basic login, registration, password reset and user profile syncing.
 
 ```
 npm install couch-party
@@ -15,7 +15,7 @@ npm install couch-party
 //Login
 var baseCouchURL = 'http://admin:admin@localhost:5984/myProject'
 var login = {
-    nickOrEmail: "Sarah", 
+    nickOrEmail: "Sarah",
     password: 'w00t'
 }
 couchParty.login(baseCouchURL, login, function(err, doc) {
@@ -27,8 +27,8 @@ couchParty.login(baseCouchURL, login, function(err, doc) {
 ```
 //Register
 var form = {
-    nickname: 'Sarah', 
-    email : 'sara@geemail.com', 
+    nickname: 'Sarah',
+    email : 'sara@geemail.com',
     password : 'w00t'
 }
 couchParty.register(baseCouchURL, form, function(err, couchRes) {
@@ -41,7 +41,7 @@ couchParty.register(baseCouchURL, form, function(err, couchRes) {
 
 ### Sync time
 
-There is also a function to sync client-side changes with help from PouchDB: 
+There is also a function to sync client-side changes with help from PouchDB:
 
 ```
 //server.js
@@ -50,22 +50,22 @@ couchParty.syncEverybody(baseCouchURL)
 
 Each user gets their own database.  In addition, a single 'mother' database is used for authentication.  syncEverybody function keeps changes from the individual user databases to the mother.  
 
-On client side, now you can just save stuff to a browser PouchDB and let it's sync feature take care of the rest. 
+On client side, now you can just save stuff to a browser PouchDB and let it's sync feature take care of the rest.
 
 ```
 //app.js (browser)
-//First, get the user doc by logging in: 
+//First, get the user doc by logging in:
 var userDoc
 $.post('http://localhost:4500/login', form, function(userDoc) {
-//^ Assuming your server app is listening on 4500, and calls "couchParty.login" with the route above. 
+//^ Assuming your server app is listening on 4500, and calls "couchParty.login" with the route above.
     initPouch(userDoc)
 }, 'json')
 
-//Create a database based on the userDoc we got from server: 
+//Create a database based on the userDoc we got from server:
 function initPouch(userDoc) {
     var db = new PouchDB('myproject_user')
     db.post(userDoc, function(err, res) {
-        //Now perform a live sync: 
+        //Now perform a live sync:
         db.sync('http://admin:admin@localhost:5984/' + userDoc.db_name, { live: true, retry: true })
           .on('change', function(info) {
             console.log('Now this is a party!')
@@ -77,7 +77,7 @@ function initPouch(userDoc) {
 
 ### Lost keys
 
-To reset a password, first call couchParty.resetToken to generate and 'seed' the appropriate user with a secret token (then an implied step where you email the user said token) and then call couchParty.resetPass with the token and new password. 
+To reset a password, first call couchParty.resetToken to generate and 'seed' the appropriate user with a secret token (then an implied step where you email the user said token) and then call couchParty.resetPass with the token and new password.
 
 There is no built-in email mecahnism, you can send the email however you like. For example with nodemailer as in the example below.
 
@@ -93,16 +93,16 @@ app.post('/api/reset', function(req, res) {
     //the secret token is applied to the userDoc in the user database
     //Now you can send the email however you like:
     var email = {
-      to: req.body.email, 
-      subject:`Password Reset`, 
-      from : 'support@worlddomination.com', 
+      to: req.body.email,
+      subject:`Password Reset`,
+      from : 'support@worlddomination.com',
       html: `<p>Hello there,</p>
       <p>There has been a request to reset your password.  If you wish to proceed, click the link below: </p>
       <p><a href="http://worlddomination.com/reset-confirm/${token}">www.worlddomination.com/reset-confirm/token</a></p>
       If for any reason you did not request a password reset please reply back to inform support@worlddomination.com</p>
       `
     }
-    //Send the mail: 
+    //Send the mail:
     //(nodemailer object initialized already)
     nodemailer.sendMail(email, function(err, nodemailerRes){
       if(err) return console.log(err.message)
@@ -117,7 +117,7 @@ app.post('/api/reset', function(req, res) {
 app.post('/api/reset/:secretToken', function(req, res) {
   couchParty.resetPass(baseCouchURL, req.params.secretToken, req.body.new_password, function(err) {
     if(err) return res.send({ok:false, msg: err })
-    //If there was no error, the password was reset successfully: 
+    //If there was no error, the password was reset successfully:
     res.send({ok:true, msg: 'Password was reset successfully.'})
   })
 })
@@ -129,7 +129,7 @@ app.post('/api/reset/:secretToken', function(req, res) {
 
 **register**  
 `couchParty.register(baseURL, login, callback)`  
-Registers a new user, accepting either a username/email or both and a password.  The password is hashed before saving into the database. 
+Registers a new user, accepting either a username/email or both and a password.  The password is hashed before saving into the database.
 
 ```javascript
   couchParty.register('http://localhost:5984/wedding_', { email:  'mike@gmail.com', password : '6969booyeah' }, (err, signupToken) => {
@@ -149,6 +149,13 @@ Returns an err if no match (or db problem) or the updated user doc if successful
   })
 ```
 
+**login**
+`couchParty.login(baseURL, loginObj, callback)`  
+Finds the user who matches the supplied token and marks that user's doc as { verified : true }
+Returns an err if no match (or db problem) or the updated user doc if successful.
 
-
-
+```javascript
+  couchParty.verify('http://localhost:5984/wedding_', { token : 'ba1b581b3318ff10' }, (err, userDoc) => {
+    //userDoc =  { email:  'mike@gmail.com', password : 'afsadfaasdlkj33', verified : true }
+  })
+```
