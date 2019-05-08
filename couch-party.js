@@ -119,6 +119,8 @@ couchParty.login = function(baseURL, login, callback) {
     //If user does not exist:
     if(_.isUndefined(doc)) return callback('No user with that nickname or email (' + standardLogin.nickOrEmail + ')')
 
+    if(!doc.verified) return callback('Account is not verified.')
+
     //Password check:
     bcrypt.compare(login.password, doc.password, function(err, res) {
       if(err) return console.log(err)

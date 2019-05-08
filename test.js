@@ -128,5 +128,34 @@ rimraf('./test/pouch', (err) => {
         })
       })
     })
+
+    test('Cannot login if not verified', (t) => {
+      t.plan(1)
+      const couchParty = requireUncached('./couch-party.js')
+
+      let registrant = {
+        email : 'bob@geemail.com',
+        password : 'spaceislame'
+      }
+
+      couchParty.register(baseDbURL, registrant, (err, res) => {
+        if(err) return t.fail(err)
+
+        //the registrant object (containing email and password key value pairs) supplied for login is same as what was used as during registration:
+
+        couchParty.login(baseDbURL, registrant, (err, res) => {
+            if(err) {
+              console.log(err)
+              //error should be 'not verified'
+              return t.equals(err, 'Account is not verified.', 'Error about not verified returned')
+            } //below should not run:
+            console.log(res)
+            t.fail('no err was provided')
+        })
+
+      })
+
+    })
+
   })
 })
