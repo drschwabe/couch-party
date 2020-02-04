@@ -1,6 +1,6 @@
 {
   "name": "couch-party",
-  "version": "1.0.0-alpha",
+  "version": "1.0.0-alpha.1",
   "description": "A set of functions for building Couch/PouchDB driven community apps.",
   "main": "couch-party.js",
   "license": "MIT",
@@ -28,7 +28,6 @@
   "dependencies": {
     "bcrypt": "0.x",
     "pouchdb": "7.x",
-    "pouchdb-server": "4.x",
     "underpouch": "1.x",
     "underscore": "1.x",
     "underscore.string": "3.x"
@@ -38,6 +37,7 @@
     "test": "tape test.js | tap-spec"
   },
   "devDependencies": {
+    "pouchdb-server": "4.x",
     "require-uncached": "1.x",
     "tap-spec": "5.x",
     "tape": "4.x"
